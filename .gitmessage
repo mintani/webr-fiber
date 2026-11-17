@@ -1,0 +1,8 @@
+
+# type(scope): description in English (max 72 characters)
+#
+# Types: feat fix refactor perf docs test build ci style revert chore
+# Example: feat(codegen): add plus composer for ggplot layers
+#
+# Body (optional): why this change is needed, if the subject is not enough.
+# See CONTRIBUTING.md#commit-and-pull-request-format
