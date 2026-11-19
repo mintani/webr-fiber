@@ -18,7 +18,7 @@ Write everything that goes into the repository or onto GitHub in English: code, 
 
 ## Verification
 
-Run `npm run check`, `npm test` and `npm run build` before every pull request and record the results in the pull request template. When you change a command, update [CONTRIBUTING.md](CONTRIBUTING.md#verifying-a-change) and this file in the same pull request.
+Run `npm run check`, `npm test` and `npm run build` before every pull request and record the results in the pull request template. For a change that affects what users see, also check it in a browser with `npm run example`. When you change a command, update [CONTRIBUTING.md](CONTRIBUTING.md#verifying-a-change) and this file in the same pull request.
 
 ## Permissions
 

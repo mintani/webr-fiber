@@ -84,12 +84,15 @@ Work that is explicitly approved without an issue may skip steps 1 and 2.
 
 ## Verifying a change
 
-| Command          | Checks                                                                                             |
-| ---------------- | -------------------------------------------------------------------------------------------------- |
-| `npm run check`  | Formatting (Prettier), lint (oxlint) and types (`tsc --noEmit`, with and without `webr-fiber/jsx`) |
-| `npm test`       | Unit tests (Vitest)                                                                                |
-| `npm run build`  | Builds the library to `dist/` as ES modules with type declarations                                 |
-| `npm run format` | Rewrites files with Prettier                                                                       |
+| Command           | Checks                                                                                             |
+| ----------------- | -------------------------------------------------------------------------------------------------- |
+| `npm run check`   | Formatting (Prettier), lint (oxlint) and types (`tsc --noEmit`, with and without `webr-fiber/jsx`) |
+| `npm test`        | Unit tests (Vitest)                                                                                |
+| `npm run build`   | Builds the library to `dist/` as ES modules with type declarations                                 |
+| `npm run format`  | Rewrites files with Prettier                                                                       |
+| `npm run example` | Starts the [basic example](examples/basic/README.md) against the library source                    |
+
+`npm run check` and `npm run build` also cover the example in `examples/basic`, which is an npm workspace.
 
 Relative imports in `src/` end in `.js`, also when the file is TypeScript, so that the published type declarations resolve in every module resolution mode.
 
