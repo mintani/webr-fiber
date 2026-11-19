@@ -7,8 +7,7 @@
 | Overview of the project                                | [README](../README.md)                   |
 | Setup, workflow, verification, pull requests, releases | [Contributing guide](../CONTRIBUTING.md) |
 | Instructions for AI coding agents                      | [AGENTS.md](../AGENTS.md)                |
-
-Architecture and API documents will be added here together with the first implementation.
+| How R code is generated from an element tree           | [Architecture](architecture.md)          |
 
 ## Decisions (ADRs)
 

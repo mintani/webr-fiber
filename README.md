@@ -13,7 +13,7 @@ webr-fiber is a custom React renderer that turns JSX into R code and runs it in 
 </RCanvas>
 ```
 
-> **Status:** pre-alpha. The repository currently contains the development workflow and an empty library package. The API above is a design target, not a working feature.
+> **Status:** pre-alpha. Code generation from an element tree is implemented. The React renderer and `RCanvas` are not, so the API above is a design target, not a working feature.
 
 ## Language
 
