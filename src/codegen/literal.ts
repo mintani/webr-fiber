@@ -17,12 +17,19 @@ export function r(
   strings: TemplateStringsArray,
   ...values: unknown[]
 ): RExpression {
-  return {
-    [EXPRESSION]: true,
-    // A backtick and `${` can only be written escaped in a template, so the escape is dropped.
-    strings: strings.raw.map((text) => text.replace(/\\(`|\$\{)/g, "$1")),
+  // A backtick and `${` can only be written escaped in a template, so the escape is dropped.
+  return expression(
+    strings.raw.map((text) => text.replace(/\\(`|\$\{)/g, "$1")),
     values,
-  };
+  );
+}
+
+/** Builds an R expression from code fragments with one value between each pair of them. */
+export function expression(
+  strings: readonly string[],
+  values: readonly unknown[],
+): RExpression {
+  return { [EXPRESSION]: true, strings, values };
 }
 
 function isExpression(value: unknown): value is RExpression {
