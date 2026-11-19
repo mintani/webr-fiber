@@ -7,7 +7,7 @@
 | Overview of the project                                | [README](../README.md)                   |
 | Setup, workflow, verification, pull requests, releases | [Contributing guide](../CONTRIBUTING.md) |
 | Instructions for AI coding agents                      | [AGENTS.md](../AGENTS.md)                |
-| How R code is generated from an element tree           | [Architecture](architecture.md)          |
+| How JSX becomes an element tree and then R code        | [Architecture](architecture.md)          |
 
 ## Decisions (ADRs)
 

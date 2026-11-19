@@ -1,6 +1,43 @@
 # Architecture
 
-webr-fiber turns a React element tree into R code and runs it with webR. This document describes the parts that exist. Today that is code generation; the React renderer and the webR runtime are not implemented yet.
+webr-fiber turns a React element tree into R code and runs it with webR. This document describes the parts that exist. Today that is the renderer, which builds the element tree, and code generation. Running the code in webR is not implemented yet.
+
+| Part            | Source          | Input           | Output                 |
+| --------------- | --------------- | --------------- | ---------------------- |
+| Renderer        | `src/renderer/` | JSX             | Tree of `RNode`        |
+| Code generation | `src/codegen/`  | Tree of `RNode` | R code and its objects |
+
+## Renderer
+
+The renderer is a custom React renderer built on `react-reconciler`. Inside its root, a lowercase JSX tag is not a DOM element but one R function call.
+
+```tsx
+<ggplot data={mtcars} mapping={aes({ x: "wt", y: "mpg" })}>
+  <geom_point size={size} />
+  {smooth && <geom_smooth method="lm" />}
+</ggplot>
+```
+
+- A tag becomes a node with the tag name as `type`, its props in their written order and its child tags as `children`. `children`, `key` and `ref` are not props of the node.
+- Components, fragments, hooks and context work as in any React tree. Context that is provided outside the root is visible inside.
+- Text cannot be a child. It is an error, because R has nothing that it could become.
+- An error of a component inside the root reaches the error boundaries outside the root.
+
+The root is internal (`src/renderer/root.tsx`). It reports the root nodes after each commit:
+
+- The element tree commits in the same tick as the surrounding React tree.
+- React also commits when nothing changed, so a consumer that only wants changes has to compare.
+- React changes the nodes in place on later commits. A report has to be used before the callback returns.
+
+### JSX types
+
+TypeScript rejects unknown lowercase tags. Importing `webr-fiber/jsx` once in a project makes it accept any lowercase tag with any props:
+
+```ts
+import "webr-fiber/jsx";
+```
+
+This changes the JSX types of the whole project: TypeScript no longer reports misspelt HTML tags. This is why the types are not enabled by default. `<call>` is typed and requires `fn`.
 
 ## Code generation
 
@@ -57,6 +94,13 @@ r`subset(${data}, cyl == ${4} & name == ${"Fiat"})`; // subset(.d1, cyl == 4 & n
 - The text is taken as written. R escapes need no extra backslash.
 - A backtick and `${` have to be escaped in a JavaScript template. That escape is removed.
 - Interpolated values are converted by the rules in [Values](#values). A string is quoted, so it is never run as code. To insert a name, interpolate another expression: `` r`aes(x = ${r`wt`})` ``.
+
+`aes()` writes a ggplot2 mapping from an object. A string is a column name, and any other value follows the rules in [Values](#values):
+
+```ts
+aes({ x: "wt", y: "Miles per gallon", colour: r`factor(cyl)` });
+// aes(x = wt, y = `Miles per gallon`, colour = factor(cyl))
+```
 
 ### Names
 
