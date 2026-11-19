@@ -1,11 +1,12 @@
 # Architecture
 
-webr-fiber turns a React element tree into R code and runs it with webR. This document describes the parts that exist. Today that is the renderer, which builds the element tree, and code generation. Running the code in webR is not implemented yet.
+webr-fiber turns a React element tree into R code and runs it with webR. `RCanvas` connects the three parts: on each commit of its children it takes the element tree from the renderer, generates the code and hands it to the runtime.
 
 | Part            | Source          | Input           | Output                 |
 | --------------- | --------------- | --------------- | ---------------------- |
 | Renderer        | `src/renderer/` | JSX             | Tree of `RNode`        |
 | Code generation | `src/codegen/`  | Tree of `RNode` | R code and its objects |
+| Runtime         | `src/runtime/`  | R code, objects | Plot on a `<canvas>`   |
 
 ## Renderer
 
@@ -145,3 +146,44 @@ Objects are not written into the code. Each one is stored in `env` under a gener
 - Names are `.d1`, `.d2`, ... in the order in which the objects appear in the code.
 - The same object, compared by identity, gets one name however often it is used.
 - Generating the same tree again produces the same code and the same names.
+
+## Runtime
+
+### `WebRProvider`
+
+The app creates the webR instance and hands it to `WebRProvider`. The library never creates or closes one, so the app keeps control of webR options such as the URL that R is loaded from.
+
+```tsx
+const webR = new WebR();
+
+<WebRProvider webR={webR} packages={["ggplot2"]}>
+  ...
+</WebRProvider>;
+```
+
+- The provider initialises the instance, installs the packages and attaches them with `library()`. This happens once per instance and list of packages, also when the provider mounts again.
+- `useWebR()` returns `{ webR, status, error }`. `status` is `loading`, `ready` or `error`.
+- `RCanvas` and `useWebR()` throw outside a provider.
+
+### `RCanvas`
+
+| Prop              | Meaning                                                                    |
+| ----------------- | -------------------------------------------------------------------------- |
+| `width`, `height` | Size of the plot in CSS pixels                                             |
+| `children`        | R elements that describe the plot                                          |
+| `onCode`          | Called with the generated code whenever it changes                         |
+| `onError`         | Called when code generation or R fails. Without it the error is logged     |
+| Other props       | Passed to the `<canvas>` element, for example `className` and `aria-label` |
+
+`RCanvas` draws in these steps:
+
+1. After each commit it generates the code. If the code, the bound objects (compared by identity) and the size are the same as last time, it stops here.
+2. R draws one plot at a time. A plot that waits is replaced by a newer one, so that only the latest state is drawn after R is free again. One redraw of a ggplot2 plot takes about half a second.
+3. Bound objects are converted. An array of row objects or an object of columns becomes a `data.frame`. Any other object becomes a named list.
+4. The code runs with `captureR` in an environment that holds the bound objects. They do not leak into the global environment. Visible values are printed as at the R console, so `ggplot(...)` draws without `print()`.
+5. The last image is painted on the canvas. webR renders at twice the requested size, so the bitmap is `2 * width` by `2 * height`.
+
+- If code generation or R fails, the previous plot stays and the error is reported.
+- If `RCanvas` unmounts while R is drawing, the result is dropped.
+- The plot background is white.
+- Cross-origin isolation headers are not needed. Without them webR uses its PostMessage channel.
