@@ -1,13 +1,22 @@
 # Basic example
 
-The plot from the [README](../../README.md), running in the browser: a ggplot2 scatter plot of the `mtcars` data, drawn by R and driven by React state.
+The plot from the [README](../../README.md), running in the browser: a ggplot2 scatter plot of the `mtcars` data, drawn by R and driven by React state. With the trend line on, the page also shows printed output and a value from R.
 
-| Control    | React state | R code                            |
-| ---------- | ----------- | --------------------------------- |
-| Point size | `size`      | `geom_point(size = ...)`          |
-| Trend line | `smooth`    | Adds `geom_smooth(method = "lm")` |
+| Control            | React state | What follows                                                                       |
+| ------------------ | ----------- | ---------------------------------------------------------------------------------- |
+| Point size         | `size`      | `geom_point(size = ...)`                                                           |
+| Minimum horsepower | `power`     | The rows are filtered in JavaScript. The plot and the model read the same rows     |
+| Trend line         | `smooth`    | Adds `geom_smooth(method = "lm")`, the coefficients of the model and its R squared |
 
-The page also shows the R code that webr-fiber generates from the JSX in [src/App.tsx](src/App.tsx).
+| Part of the page    | Library feature                                                        |
+| ------------------- | ---------------------------------------------------------------------- |
+| Plot                | `RCanvas`                                                              |
+| Line under the plot | `onOutput` of `RCanvas`: the message that ggplot2 prints for the trend |
+| Generated R         | `onCode` of `RCanvas`                                                  |
+| Coefficient table   | `RConsole` around `coef(summary(lm(...)))`                             |
+| R squared           | `useRValue`                                                            |
+
+All of it is in [src/App.tsx](src/App.tsx).
 
 ## Run
 
