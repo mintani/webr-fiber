@@ -6,9 +6,28 @@
  */
 export type Composer = "plus" | "sequence";
 
+// The functions of the graphics package that start a new plot. Children add to that plot.
+const BASE_PLOTS = [
+  "plot",
+  "hist",
+  "barplot",
+  "boxplot",
+  "pie",
+  "curve",
+  "pairs",
+  "coplot",
+  "matplot",
+  "dotchart",
+  "image",
+  "contour",
+  "persp",
+  "qqnorm",
+  "qqplot",
+];
+
 const catalogue = new Map<string, Composer>([
   ["ggplot", "plus"],
-  ["plot", "sequence"],
+  ...BASE_PLOTS.map((name): [string, Composer] => [name, "sequence"]),
 ]);
 
 /** Registers composers for more function names. A later call replaces an earlier entry. */
@@ -20,7 +39,10 @@ export function extend(entries: Readonly<Record<string, Composer>>): void {
   }
 }
 
-/** Returns the composer registered for a node type, if any. */
+/**
+ * Returns the composer registered for a node type, if any. `pkg::fn` falls back to the entry of
+ * `fn`.
+ */
 export function composerOf(type: string): Composer | undefined {
-  return catalogue.get(type);
+  return catalogue.get(type) ?? catalogue.get(type.replace(/^.*?:::?/, ""));
 }
