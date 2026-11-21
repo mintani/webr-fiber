@@ -26,7 +26,10 @@ const TO_PLAIN = `(function(x) {
     # unclass() keeps a class from iterating in its own way, as numeric_version does.
     if (is.list(x)) return(lapply(unclass(x), plain))
     if (!is.atomic(x)) stop("webr-fiber cannot convert an R value of class ", class(x)[1])
-    if (length(dim(x)) == 2) return(lapply(seq_len(nrow(x)), function(i) x[i, ]))
+    if (length(dim(x)) == 2) {
+      # x[i, ] alone loses the name of a single column.
+      return(lapply(seq_len(nrow(x)), function(i) structure(x[i, ], names = colnames(x))))
+    }
     if (length(dim(x)) > 2) stop("webr-fiber cannot convert an array with more than two dimensions")
     x
   }
