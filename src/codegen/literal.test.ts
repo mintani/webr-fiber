@@ -40,6 +40,29 @@ describe("literals", () => {
     expect(code(value)).toBe(expected);
   });
 
+  test("a date becomes a date-time in UTC", () => {
+    expect(code(new Date("2026-01-02T03:00:00Z"))).toBe(
+      'as.POSIXct(1767322800, tz = "UTC")',
+    );
+    expect(code(new Date("2026-01-02T03:00:00.250+09:00"))).toBe(
+      'as.POSIXct(1767290400.25, tz = "UTC")',
+    );
+    expect(code(new Date(-1500))).toBe('as.POSIXct(-1.5, tz = "UTC")');
+    expect(code(new Date(Number.NaN))).toBe('as.POSIXct(NA, tz = "UTC")');
+  });
+
+  test("an array of dates becomes one vector of date-times", () => {
+    const day = new Date(86_400_000);
+    expect(code([day, null, new Date(Number.NaN), undefined, day])).toBe(
+      'as.POSIXct(c(86400, NA, NA, NA, 86400), tz = "UTC")',
+    );
+  });
+
+  test("rejects an array that mixes dates with other values", () => {
+    expect(() => code([new Date(0), 1])).toThrow(TypeError);
+    expect(() => code([{ a: 1 }, new Date(0)])).toThrow(TypeError);
+  });
+
   test.each(["a\0b", "\uD83D", "x\uDE00"])("rejects the string %j", (value) => {
     expect(() => code(value)).toThrow(TypeError);
   });

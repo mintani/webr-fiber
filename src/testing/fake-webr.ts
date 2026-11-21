@@ -18,13 +18,17 @@ const asyncClass = <T>(make: (value: unknown) => T) =>
  * A webR that records calls instead of running R.
  *
  * `captureR` resolves with one image by default. Like webR, `RObject` only accepts arrays and
- * objects of arrays, so that other objects have to become an `RList`.
+ * objects of arrays, so that other objects have to become an `RList`. `evalR` resolves with a
+ * record of its call.
  */
 export function fakeWebR() {
   const captureR = vi.fn<(code: string, options: object) => Promise<Capture>>(
     () => Promise.resolve({ images: [fakeImage()], output: [], result: {} }),
   );
   const purge = vi.fn<() => Promise<void>>(() => Promise.resolve());
+  const evalR = vi.fn<(code: string, options: object) => Promise<object>>(
+    (code, options) => Promise.resolve({ r: "evalR", code, options }),
+  );
   const shelter = {
     RObject: asyncClass((value) => {
       const eligible =
@@ -37,6 +41,7 @@ export function fakeWebR() {
     }),
     RList: asyncClass((value) => ({ r: "list", value })),
     captureR,
+    evalR,
     purge,
   };
   const fake = {
@@ -47,5 +52,5 @@ export function fakeWebR() {
     evalRVoid: vi.fn<(code: string) => Promise<void>>(() => Promise.resolve()),
     Shelter: asyncClass(() => shelter),
   };
-  return { webR: fake as unknown as WebR, ...fake, captureR, purge };
+  return { webR: fake as unknown as WebR, ...fake, captureR, evalR, purge };
 }

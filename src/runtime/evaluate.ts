@@ -3,16 +3,70 @@ import type { Generated } from "../codegen/compose.js";
 
 type WebRData = NonNullable<EvalROptions["env"]>;
 
+type Plain = Record<string, unknown>;
+
+function isPlain(value: unknown): value is Plain {
+  if (typeof value !== "object" || value === null) return false;
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function mapEntries(
+  record: Plain,
+  each: (name: string, item: unknown) => unknown,
+): Plain {
+  return Object.fromEntries(
+    Object.entries(record).map(([name, item]) => [name, each(name, item)]),
+  );
+}
+
 /**
- * webR builds a data frame from an array of rows or an object of columns, and throws for any
- * other object. Those become a named list.
+ * Copies an array of rows or an object of columns with each cell replaced by what `visit`
+ * returns for it. Any other value is returned as it is.
  */
-async function toR(shelter: Shelter, value: WebRData): Promise<RObject> {
-  try {
-    return await new shelter.RObject(value);
-  } catch {
-    return await new shelter.RList(value);
+function mapCells(
+  value: unknown,
+  visit: (column: string, cell: unknown) => unknown,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((row: unknown) =>
+      isPlain(row) ? mapEntries(row, visit) : row,
+    );
   }
+  if (!isPlain(value)) return value;
+  return mapEntries(value, (name, column) =>
+    Array.isArray(column)
+      ? column.map((cell: unknown) => visit(name, cell))
+      : column,
+  );
+}
+
+/**
+ * Converts a bound object to R.
+ *
+ * webR builds a data frame from an array of rows or an object of columns, and throws for any
+ * other object. Those become a named list. webR cannot take a `Date` as a cell, so dates travel
+ * as seconds since 1970 and their columns become date-times in R.
+ */
+async function toR(shelter: Shelter, value: unknown): Promise<RObject> {
+  const dateColumns = new Set<string>();
+  const plain = mapCells(value, (column, cell) => {
+    if (!(cell instanceof Date)) return cell;
+    dateColumns.add(column);
+    const time = cell.getTime();
+    return Number.isNaN(time) ? null : time / 1000;
+  }) as WebRData;
+  let frame: RObject;
+  try {
+    frame = await new shelter.RObject(plain);
+  } catch {
+    return await new shelter.RList(plain);
+  }
+  if (dateColumns.size === 0) return frame;
+  return shelter.evalR(
+    'x[columns] <- lapply(x[columns], as.POSIXct, tz = "UTC")\nx',
+    { env: { x: frame, columns: [...dateColumns] } },
+  );
 }
 
 /**
@@ -31,7 +85,7 @@ export async function evaluate(
   try {
     const bound: Record<string, RObject> = {};
     for (const [name, value] of Object.entries(env)) {
-      bound[name] = await toR(shelter, value as WebRData);
+      bound[name] = await toR(shelter, value);
     }
     const { images } = await shelter.captureR(code, {
       env: bound,

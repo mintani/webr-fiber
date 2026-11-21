@@ -103,11 +103,20 @@ function atom(value: unknown, missing: string): string | undefined {
   }
 }
 
+/** Seconds since 1970 as R code. A missing or invalid date is `NA`. */
+function seconds(date: Date | null | undefined): string {
+  const time = date?.getTime() ?? Number.NaN;
+  return Number.isNaN(time) ? "NA" : String(time / 1000);
+}
+
+// UTC keeps the generated code the same on every machine.
+const dateTime = (time: string): string => `as.POSIXct(${time}, tz = "UTC")`;
+
 /**
  * Converts a JavaScript value to R code.
  *
- * Numbers, strings, booleans, `null` and arrays of these become literals. Any other object is
- * passed to `bind`, which returns the variable name that will hold it in R.
+ * Numbers, strings, booleans, `null`, dates and arrays of these become literals. Any other object
+ * is passed to `bind`, which returns the variable name that will hold it in R.
  */
 export function toCode(
   value: unknown,
@@ -124,7 +133,17 @@ export function toCode(
   }
   const scalar = atom(value, "NULL");
   if (scalar !== undefined) return scalar;
+  if (value instanceof Date) return dateTime(seconds(value));
   if (Array.isArray(value)) {
+    const items: unknown[] = Array.from(value);
+    if (items.some((item) => item instanceof Date)) {
+      const dates = items.filter(
+        (item) => item == null || item instanceof Date,
+      );
+      if (dates.length < items.length)
+        throw new TypeError("An array cannot mix dates with other values");
+      return dateTime(`c(${dates.map(seconds).join(", ")})`);
+    }
     // `c()` drops NULL, so a missing element is NA to keep the length of the vector.
     const elements = Array.from(value, (element) =>
       isExpression(element)
