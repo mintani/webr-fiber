@@ -131,7 +131,7 @@ describe.each([
   ["without StrictMode", ({ children }: { children: ReactNode }) => children],
   ["with StrictMode", StrictMode],
 ])("redrawing %s", (_label, Wrapper) => {
-  test("draws again only when the code, the objects or the size change", async () => {
+  test("draws again only when the code, the data or the size change", async () => {
     const fake = fakeWebR();
     const data = [{ wt: 1 }];
     const tree = (rows: object[], width: number) => (
@@ -152,12 +152,16 @@ describe.each([
     await settle();
     expect(fake.captureR).toHaveBeenCalledTimes(1);
 
-    const copy = [{ wt: 1 }];
-    render(tree(copy, 600));
+    render(tree([{ wt: 1 }], 600));
+    await settle();
+    expect(fake.captureR).toHaveBeenCalledTimes(1);
+
+    const other = [{ wt: 2 }];
+    render(tree(other, 600));
     await settle();
     expect(fake.captureR).toHaveBeenCalledTimes(2);
 
-    render(tree(copy, 300));
+    render(tree(other, 300));
     await settle();
     expect(fake.captureR).toHaveBeenCalledTimes(3);
     expect(fake.captureR).toHaveBeenLastCalledWith(

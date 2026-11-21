@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { WebR } from "webr";
 import type { Generated } from "../codegen/compose.js";
+import { isPlain } from "./plain.js";
 import { useWebR } from "./provider.js";
 
 interface Handlers<J extends Generated, R> {
@@ -16,22 +17,44 @@ interface Handlers<J extends Generated, R> {
   onError?: ((error: unknown) => void) | undefined;
 }
 
-function sameEntries(a: object, b: object): boolean {
+function sameEntries(
+  a: object,
+  b: object,
+  same: (a: unknown, b: unknown) => boolean = Object.is,
+): boolean {
   const entries = Object.entries(b);
   return (
     Object.keys(a).length === entries.length &&
-    entries.every(
-      ([key, value]) => (a as Record<string, unknown>)[key] === value,
+    entries.every(([key, value]) =>
+      same((a as Record<string, unknown>)[key], value),
     )
   );
 }
 
-/** Two jobs are the same if they have the same code, bound objects (by identity) and options. */
-function sameJob(a: Generated | null, b: Generated): boolean {
+/**
+ * Whether two bound objects hold the same data. They are compared by value, so that an object
+ * that is made again on every render, such as `rows.filter(...)`, does not run R every time.
+ */
+function sameData(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (a instanceof Date && b instanceof Date) {
+    return Object.is(a.getTime(), b.getTime());
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return (
+      a.length === b.length &&
+      a.every((item, index) => sameData(item, b[index]))
+    );
+  }
+  return isPlain(a) && isPlain(b) && sameEntries(a, b, sameData);
+}
+
+/** Two jobs are the same if they have the same code, options and data in their bound objects. */
+export function sameJob(a: Generated | null, b: Generated): boolean {
   if (!a) return false;
   const { env: envA, ...restA } = a;
   const { env: envB, ...restB } = b;
-  return sameEntries(envA, envB) && sameEntries(restA, restB);
+  return sameEntries(envA, envB, sameData) && sameEntries(restA, restB);
 }
 
 function report(
