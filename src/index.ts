@@ -10,3 +10,5 @@ export { RConsole } from "./RConsole.js";
 export type { ROutput } from "./runtime/evaluate.js";
 export { WebRProvider, useWebR } from "./runtime/provider.js";
 export type { WebRState } from "./runtime/provider.js";
+export { useRValue } from "./useRValue.js";
+export type { RValue } from "./useRValue.js";

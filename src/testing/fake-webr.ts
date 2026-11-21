@@ -20,6 +20,11 @@ export function fakeCondition(message: string) {
   };
 }
 
+/** A stand-in for an R object whose `toJs()` gives `tree`. */
+export function fakeValue(tree: object) {
+  return { toJs: () => Promise.resolve(tree) };
+}
+
 // webR classes are created with `await new Class(value)`.
 const asyncClass = <T>(make: (value: unknown) => T) =>
   function construct(value: unknown) {
@@ -31,7 +36,7 @@ const asyncClass = <T>(make: (value: unknown) => T) =>
  *
  * `captureR` resolves with one image by default. Like webR, `RObject` only accepts arrays and
  * objects of arrays, so that other objects have to become an `RList`. `evalR` resolves with a
- * record of its call.
+ * record of its call that converts to `null`.
  */
 export function fakeWebR() {
   const captureR = vi.fn<(code: string, options: object) => Promise<Capture>>(
@@ -39,7 +44,13 @@ export function fakeWebR() {
   );
   const purge = vi.fn<() => Promise<void>>(() => Promise.resolve());
   const evalR = vi.fn<(code: string, options: object) => Promise<object>>(
-    (code, options) => Promise.resolve({ r: "evalR", code, options }),
+    (code, options) =>
+      Promise.resolve({
+        r: "evalR",
+        code,
+        options,
+        ...fakeValue({ type: "null" }),
+      }),
   );
   const shelter = {
     RObject: asyncClass((value) => {
