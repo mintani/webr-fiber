@@ -20,6 +20,7 @@ The renderer is a custom React renderer built on `react-reconciler`. Inside its 
 ```
 
 - A tag becomes a node with the tag name as `type`, its props in their written order and its child tags as `children`. `children`, `key` and `ref` are not props of the node.
+- JSX cannot write a dot in a tag name or a prop name, so a hyphen stands for a dot: `<t-test conf-level={0.9} na-rm />` is the node `t.test` with the props `conf.level` and `na.rm`. An underscore stays an underscore.
 - Components, fragments, hooks and context work as in any React tree. Context that is provided outside the root is visible inside.
 - Text cannot be a child. It is an error, because R has nothing that it could become.
 - An error of a component inside the root reaches the error boundaries outside the root.
@@ -74,12 +75,26 @@ Props, `args` of `<call>` and values interpolated into `r` all follow the same r
 | Boolean                              | `TRUE`, `FALSE`     |                                                                  |
 | `null`                               | `NULL`              |                                                                  |
 | Array of the values above            | `c(1, 2)`           | `null`, `undefined` and holes become `NA`, so the length is kept |
+| `Date`                               | `as.POSIXct(...)`   | See [Dates](#dates)                                              |
 | `` r`...` ``                         | The text as written | See [R expressions](#r-expressions)                              |
 | Any other object, including an array | `.d1`, `.d2`, ...   | See [Environment](#environment)                                  |
 | `undefined`                          | Nothing             | The prop is left out. In `args` or inside `r` it is an error     |
 | Function, symbol, bigint             | Error               |                                                                  |
 
 R strings cannot hold a NUL character or an unpaired surrogate. A string that contains one is an error, because the generated code would fail in R.
+
+### Dates
+
+A `Date` becomes a date-time (`POSIXct`) in UTC, written as seconds since 1970. UTC keeps the generated code the same on every machine.
+
+```ts
+new Date("2026-01-02T03:00:00Z"); // as.POSIXct(1767322800, tz = "UTC")
+[day, null, day]; // as.POSIXct(c(86400, NA, 86400), tz = "UTC")
+```
+
+- An array of dates becomes one vector. `null`, `undefined`, holes and invalid dates become `NA`.
+- An array that mixes dates with other values is an error.
+- `as.Date(x)` in R turns the date-time into a calendar date: `` r`as.Date(${day})` ``.
 
 ### R expressions
 
@@ -105,7 +120,7 @@ aes({ x: "wt", y: "Miles per gallon", colour: r`factor(cyl)` });
 
 ### Names
 
-Function names and argument names are used as they are when they are valid R names: letters, digits, `.` and `_`, starting with a letter or with a dot that is not followed by a digit or another dot, and not a reserved word. Any other name is quoted with backticks.
+Function names and argument names are used as they are when they are valid R names: letters, digits, `.` and `_`, starting with a letter or with a dot that is not followed by a digit or another dot, and not a reserved word. Any other name is quoted with backticks. In JSX a hyphen has already become a dot before the name gets here (see [Renderer](#renderer)), so a name with a real hyphen can only come from `generate()`.
 
 | Name            | R code          |
 | --------------- | --------------- |
@@ -124,9 +139,11 @@ A composer decides how a node and its children are combined.
 | ---------- | ---------------------- | -------------------------------------------------------------------------- |
 | Call       | Types without an entry | `fn(child, ..., name = value, ...)`: children are positional arguments     |
 | `plus`     | `ggplot`               | `fn(name = value, ...) + child + ...`                                      |
-| `sequence` | `plot`                 | `fn(name = value, ...)`, then each child as its own statement              |
+| `sequence` | Base graphics          | `fn(name = value, ...)`, then each child as its own statement              |
 | `<call>`   | The node type `call`   | `fn(args..., child, ..., name = value, ...)` with the name taken from `fn` |
 
+- `sequence` is registered for the functions of the graphics package that start a plot: `plot`, `hist`, `barplot`, `boxplot`, `pie`, `curve`, `pairs`, `coplot`, `matplot`, `dotchart`, `image`, `contour`, `persp`, `qqnorm` and `qqplot`. Their children add to the plot.
+- A type with a package prefix uses the composer of its function: `ggplot2::ggplot` composes like `ggplot`. An entry for the full name wins.
 - Named arguments keep the order in which the props were written.
 - `<call fn="stats::t.test" args={[x, y]} paired />` is for functions that need positional arguments or a name that JSX cannot express.
 - A node that produces several statements cannot be used as an argument of another call. This is an error.
@@ -136,7 +153,7 @@ A composer decides how a node and its children are combined.
 ```ts
 import { extend } from "webr-fiber";
 
-extend({ hist: "sequence" });
+extend({ stripchart: "sequence" });
 ```
 
 ### Environment
@@ -179,7 +196,7 @@ const webR = new WebR();
 
 1. After each commit it generates the code. If the code, the bound objects (compared by identity) and the size are the same as last time, it stops here.
 2. R draws one plot at a time. A plot that waits is replaced by a newer one, so that only the latest state is drawn after R is free again. One redraw of a ggplot2 plot takes about half a second.
-3. Bound objects are converted. An array of row objects or an object of columns becomes a `data.frame`. Any other object becomes a named list.
+3. Bound objects are converted. An array of row objects or an object of columns becomes a `data.frame`, and `Date` cells in it become a date-time column in UTC. Any other object becomes a named list.
 4. The code runs with `captureR` in an environment that holds the bound objects. They do not leak into the global environment. Visible values are printed as at the R console, so `ggplot(...)` draws without `print()`.
 5. The last image is painted on the canvas. webR renders at twice the requested size, so the bitmap is `2 * width` by `2 * height`.
 
