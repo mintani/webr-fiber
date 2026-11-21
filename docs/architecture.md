@@ -1,12 +1,12 @@
 # Architecture
 
-webr-fiber turns a React element tree into R code and runs it with webR. `RCanvas` connects the three parts: on each commit of its children it takes the element tree from the renderer, generates the code and hands it to the runtime.
+webr-fiber turns a React element tree into R code and runs it with webR. `RCanvas` and `RConsole` connect the three parts: on each commit of their children they take the element tree from the renderer, generate the code and hand it to the runtime.
 
 | Part            | Source          | Input           | Output                 |
 | --------------- | --------------- | --------------- | ---------------------- |
 | Renderer        | `src/renderer/` | JSX             | Tree of `RNode`        |
 | Code generation | `src/codegen/`  | Tree of `RNode` | R code and its objects |
-| Runtime         | `src/runtime/`  | R code, objects | Plot on a `<canvas>`   |
+| Runtime         | `src/runtime/`  | R code, objects | Plot or printed output |
 
 ## Renderer
 
@@ -180,7 +180,7 @@ const webR = new WebR();
 
 - The provider initialises the instance, installs the packages and attaches them with `library()`. This happens once per instance and list of packages, also when the provider mounts again.
 - `useWebR()` returns `{ webR, status, error }`. `status` is `loading`, `ready` or `error`.
-- `RCanvas` and `useWebR()` throw outside a provider.
+- `RCanvas`, `RConsole` and `useWebR()` throw outside a provider.
 
 ### `RCanvas`
 
@@ -190,6 +190,7 @@ const webR = new WebR();
 | `children`        | R elements that describe the plot                                          |
 | `onCode`          | Called with the generated code whenever it changes                         |
 | `onError`         | Called when code generation or R fails. Without it the error is logged     |
+| `onOutput`        | Called after each draw with what R printed. See [Output](#output)          |
 | Other props       | Passed to the `<canvas>` element, for example `className` and `aria-label` |
 
 `RCanvas` draws in these steps:
@@ -204,3 +205,39 @@ const webR = new WebR();
 - If `RCanvas` unmounts while R is drawing, the result is dropped.
 - The plot background is white.
 - Cross-origin isolation headers are not needed. Without them webR uses its PostMessage channel.
+
+### `RConsole`
+
+`RConsole` shows what R prints for its children in a `<pre>` element: the result of `summary()`, `head()` or a test, and anything written with `print()` or `cat()`.
+
+```tsx
+<RConsole>
+  <summary>
+    <lm formula={r`mpg ~ wt`} data={mtcars} />
+  </summary>
+</RConsole>
+// summary(lm(formula = mpg ~ wt, data = .d1))
+```
+
+| Prop                            | Meaning                                  |
+| ------------------------------- | ---------------------------------------- |
+| `children`                      | R elements whose printed result is shown |
+| `onCode`, `onError`, `onOutput` | As for `RCanvas`                         |
+| Other props                     | Passed to the `<pre>` element            |
+
+- The code runs as in steps 1 to 4 of `RCanvas`, without a size. Plots are not captured, so a plot that the code draws is dropped.
+- Each piece of output is one `<span data-type="...">` that ends with a line break. The type is `stdout`, `stderr`, `message` or `warning`, so that an app can style them. A warning starts with `Warning: `.
+- If code generation or R fails, the previous output stays and the error is reported. The error is not written into the `<pre>`.
+- R wraps its output at 80 characters.
+
+### Output
+
+After each run without an error, `onOutput` receives what R printed as a list of `{ type, text }`, in the order in which R produced it. The list is empty if R printed nothing.
+
+| `type`             | `text`                                                       |
+| ------------------ | ------------------------------------------------------------ |
+| `stdout`, `stderr` | One line of the stream                                       |
+| `message`          | The text of a `message()`, without the line break at its end |
+| `warning`          | The text of a warning, without the call that raised it       |
+
+A plot can raise both: ggplot2 sends a message when it chooses a smoothing method and a warning when it drops rows with missing values.
