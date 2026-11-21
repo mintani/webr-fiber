@@ -9,6 +9,13 @@ const job = (data: unknown, extra: object = {}) => ({
 const day = (iso: string) => new Date(iso);
 const rows = [{ wt: 1, model: "a" }];
 const buffer = new Float64Array([1, 2]);
+const circle = (): unknown[] => {
+  const items: unknown[] = [1];
+  items.push(items);
+  return items;
+};
+// oxlint-disable-next-line no-sparse-arrays -- a hole must be compared like undefined
+const sparse = [, 1];
 
 describe("sameJob", () => {
   test("nothing equals the first job", () => {
@@ -25,6 +32,12 @@ describe("sameJob", () => {
     ["equal nested lists", { a: { b: [1, null] } }, { a: { b: [1, null] } }],
     ["NaN", [{ x: Number.NaN }], [{ x: Number.NaN }]],
     ["the same typed array", { x: buffer }, { x: buffer }],
+    ["a hole and undefined", sparse, [undefined, 1]],
+    [
+      "one row used twice",
+      [rows[0], rows[0]],
+      [{ ...rows[0] }, { ...rows[0] }],
+    ],
   ])("%s is the same data", (_label, a, b) => {
     expect(sameJob(job(a), job(b))).toBe(true);
   });
@@ -38,6 +51,10 @@ describe("sameJob", () => {
     ["rows instead of columns", [{ wt: 1 }], { wt: [1] }],
     ["an equal typed array", new Float64Array([1]), new Float64Array([1])],
     ["null instead of an object", { a: null }, { a: {} }],
+    ["a hole instead of a value", sparse, [5, 1]],
+    ["a value instead of a hole", [5, 1], sparse],
+    ["another key without a value", { a: undefined }, { b: undefined }],
+    ["data that contains itself", circle(), circle()],
   ])("%s is other data", (_label, a, b) => {
     expect(sameJob(job(a), job(b))).toBe(false);
   });

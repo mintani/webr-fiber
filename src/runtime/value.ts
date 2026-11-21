@@ -19,9 +19,9 @@ const TO_PLAIN = `(function(x) {
   }
   plain <- function(x) {
     if (is.null(x)) return(NULL)
-    if (inherits(x, "POSIXt")) x <- iso(x)
+    if (inherits(x, "POSIXt")) x <- structure(iso(x), names = names(x))
     else if (inherits(x, "Date")) x <- format(x, "%Y-%m-%d")
-    else if (is.factor(x)) x <- as.character(x)
+    else if (is.factor(x)) x <- structure(as.character(x), names = names(x))
     if (is.data.frame(x)) return(list(\`${ROWS}\` = lapply(unclass(x), plain)))
     # unclass() keeps a class from iterating in its own way, as numeric_version does.
     if (is.list(x)) return(lapply(unclass(x), plain))
