@@ -44,11 +44,24 @@ describe("bound objects", () => {
       ],
     };
     expect(fake.evalR).toHaveBeenCalledWith(
-      'x[columns] <- lapply(x[columns], as.POSIXct, tz = "UTC")\nx',
+      expect.stringContaining("lapply(x[columns], as.POSIXct"),
       { env: { x: frame, columns: ["day", "seen"] } },
     );
     expect(env[".d1"]).toBe(await fake.evalR.mock.results[0]?.value);
     expect(rows[0]?.day).toBe(day);
+  });
+
+  test("dates in a list travel as seconds and become date-times", async () => {
+    const { fake, env } = await bound({
+      ".d1": { from: new Date(1500), title: "Cars", steps: [1, 2] },
+    });
+    expect(fake.evalR).toHaveBeenCalledWith(expect.any(String), {
+      env: {
+        x: { r: "list", value: { from: 1.5, title: "Cars", steps: [1, 2] } },
+        columns: ["from"],
+      },
+    });
+    expect(env[".d1"]).toBe(await fake.evalR.mock.results[0]?.value);
   });
 
   test("date cells of an object of columns are converted too", async () => {

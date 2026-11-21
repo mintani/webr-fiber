@@ -196,7 +196,7 @@ const webR = new WebR();
 
 1. After each commit it generates the code. If the code, the bound objects (compared by identity) and the size are the same as last time, it stops here.
 2. R draws one plot at a time. A plot that waits is replaced by a newer one, so that only the latest state is drawn after R is free again. One redraw of a ggplot2 plot takes about half a second.
-3. Bound objects are converted. An array of row objects or an object of columns becomes a `data.frame`, and `Date` cells in it become a date-time column in UTC. Any other object becomes a named list.
+3. Bound objects are converted. An array of row objects or an object of columns becomes a `data.frame`, and any other object becomes a named list. A `Date` in a cell of the data frame or as a value of the list becomes a date-time in UTC.
 4. The code runs with `captureR` in an environment that holds the bound objects. They do not leak into the global environment. Visible values are printed as at the R console, so `ggplot(...)` draws without `print()`.
 5. The last image is painted on the canvas. webR renders at twice the requested size, so the bitmap is `2 * width` by `2 * height`.
 

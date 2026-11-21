@@ -21,8 +21,9 @@ function mapEntries(
 }
 
 /**
- * Copies an array of rows or an object of columns with each cell replaced by what `visit`
- * returns for it. Any other value is returned as it is.
+ * Copies an array of rows or a plain object with each cell replaced by what `visit` returns for
+ * it. A cell is a value of a row, an item of a column, or a value of the object that is not an
+ * array. Any other value is returned as it is.
  */
 function mapCells(
   value: unknown,
@@ -37,16 +38,21 @@ function mapCells(
   return mapEntries(value, (name, column) =>
     Array.isArray(column)
       ? column.map((cell: unknown) => visit(name, cell))
-      : column,
+      : visit(name, column),
   );
 }
+
+// Works on a data frame and on a named list. Names that `x` does not have are skipped.
+const TO_DATE_TIMES = `columns <- intersect(columns, names(x))
+x[columns] <- lapply(x[columns], as.POSIXct, tz = "UTC")
+x`;
 
 /**
  * Converts a bound object to R.
  *
  * webR builds a data frame from an array of rows or an object of columns, and throws for any
- * other object. Those become a named list. webR cannot take a `Date` as a cell, so dates travel
- * as seconds since 1970 and their columns become date-times in R.
+ * other object. Those become a named list. webR cannot take a `Date`, so dates travel as seconds
+ * since 1970, and the columns or list items that held them become date-times in R.
  */
 async function toR(shelter: Shelter, value: unknown): Promise<RObject> {
   const dateColumns = new Set<string>();
@@ -56,17 +62,16 @@ async function toR(shelter: Shelter, value: unknown): Promise<RObject> {
     const time = cell.getTime();
     return Number.isNaN(time) ? null : time / 1000;
   }) as WebRData;
-  let frame: RObject;
+  let object: RObject;
   try {
-    frame = await new shelter.RObject(plain);
+    object = await new shelter.RObject(plain);
   } catch {
-    return await new shelter.RList(plain);
+    object = await new shelter.RList(plain);
   }
-  if (dateColumns.size === 0) return frame;
-  return shelter.evalR(
-    'x[columns] <- lapply(x[columns], as.POSIXct, tz = "UTC")\nx',
-    { env: { x: frame, columns: [...dateColumns] } },
-  );
+  if (dateColumns.size === 0) return object;
+  return shelter.evalR(TO_DATE_TIMES, {
+    env: { x: object, columns: [...dateColumns] },
+  });
 }
 
 /**
