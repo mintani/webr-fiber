@@ -116,6 +116,27 @@ describe("element tree", () => {
     expect(commits.at(-1)?.[0]?.props.data).toBe(data);
   });
 
+  test("reads a hyphen in a tag or prop name as a dot", () => {
+    const { commits, onCommit } = collect();
+    const view = (level: number) => (
+      <Root onCommit={onCommit}>
+        <t-test x={[1, 2]} conf-level={level} na-rm />
+        <call fn="my-function" axis-text-x={1} />
+      </Root>
+    );
+    const { render } = mount(view(0.9));
+    expect(commits.at(-1)).toEqual([
+      node("t.test", { x: [1, 2], "conf.level": 0.9, "na.rm": true }),
+      node("call", { fn: "my-function", "axis.text.x": 1 }),
+    ]);
+    render(view(0.99));
+    expect(commits.at(-1)?.[0]?.props).toEqual({
+      x: [1, 2],
+      "conf.level": 0.99,
+      "na.rm": true,
+    });
+  });
+
   test("leaves out key and ref", () => {
     const { commits, onCommit } = collect();
     const ref = createRef<unknown>();
