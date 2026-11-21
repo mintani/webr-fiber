@@ -32,7 +32,8 @@ export function expression(
   return { [EXPRESSION]: true, strings, values };
 }
 
-function isExpression(value: unknown): value is RExpression {
+/** Whether a value was written with {@link r} or built with {@link expression}. */
+export function isExpression(value: unknown): value is RExpression {
   return typeof value === "object" && value !== null && EXPRESSION in value;
 }
 
