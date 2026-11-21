@@ -41,6 +41,8 @@ import "webr-fiber/jsx";
 
 This changes the JSX types of the whole project: TypeScript no longer reports misspelt HTML tags. This is why the types are not enabled by default. `<call>` is typed and requires `fn`.
 
+A tag that TypeScript knows as an HTML or SVG tag keeps its HTML types, so the R arguments of `summary`, `head`, `table`, `title`, `text`, `legend`, `filter` or `select` are type errors, although they work at run time. Write these with `<call fn="head" args={[data, 3]} />`. The full list is in [Common R features](common-r-features.md#names-that-are-also-html-tags).
+
 ## Code generation
 
 Code generation is pure TypeScript in `src/codegen/`. It does not depend on React or webR.
