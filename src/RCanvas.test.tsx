@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import "./jsx.js";
 import { RCanvas } from "./RCanvas.js";
 import { WebRProvider } from "./runtime/provider.js";
-import { fakeImage, fakeWebR } from "./testing/fake-webr.js";
+import { fakeCondition, fakeImage, fakeWebR } from "./testing/fake-webr.js";
 import { mount, settle } from "./testing/mount.js";
 
 const drawImage = vi.fn<CanvasRenderingContext2D["drawImage"]>();
@@ -152,11 +152,12 @@ describe.each([
     await settle();
     expect(fake.captureR).toHaveBeenCalledTimes(1);
 
-    render(tree([{ wt: 1 }], 600));
+    const copy = [{ wt: 1 }];
+    render(tree(copy, 600));
     await settle();
     expect(fake.captureR).toHaveBeenCalledTimes(2);
 
-    render(tree(data, 300));
+    render(tree(copy, 300));
     await settle();
     expect(fake.captureR).toHaveBeenCalledTimes(3);
     expect(fake.captureR).toHaveBeenLastCalledWith(
@@ -200,6 +201,93 @@ describe.each([
       ["ggplot() + geom_point(size = 1)"],
       ["ggplot() + geom_point(size = 2)"],
     ]);
+  });
+
+  test("does not call onCode when only an object or the size changes", async () => {
+    const fake = fakeWebR();
+    const onCode = vi.fn<(code: string) => void>();
+    const tree = (rows: object[], width: number) =>
+      provide(
+        fake,
+        <RCanvas width={width} height={400} onCode={onCode}>
+          <ggplot data={rows} />
+        </RCanvas>,
+      );
+    const { render } = mount(<Wrapper>{tree([{ wt: 1 }], 600)}</Wrapper>);
+    await settle();
+    render(<Wrapper>{tree([{ wt: 2 }], 300)}</Wrapper>);
+    await settle();
+    expect(fake.captureR).toHaveBeenCalledTimes(2);
+    expect(onCode.mock.calls).toEqual([["ggplot(data = .d1)"]]);
+  });
+
+  test("calls the handlers of the latest render", async () => {
+    const fake = fakeWebR();
+    const first = vi.fn<(code: string) => void>();
+    const second = vi.fn<(code: string) => void>();
+    const { render } = mount(
+      <Wrapper>{plot(fake, 1, { onCode: first })}</Wrapper>,
+    );
+    await settle();
+    render(<Wrapper>{plot(fake, 2, { onCode: second })}</Wrapper>);
+    await settle();
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second.mock.calls).toEqual([["ggplot() + geom_point(size = 2)"]]);
+  });
+});
+
+describe("output", () => {
+  test("calls onOutput after each draw, also with nothing printed", async () => {
+    const fake = fakeWebR();
+    const onOutput = vi.fn<(output: readonly object[]) => void>();
+    fake.captureR.mockResolvedValueOnce({
+      images: [fakeImage()],
+      output: [
+        { type: "message", data: fakeCondition("using method = 'loess'\n") },
+        { type: "warning", data: fakeCondition("Removed 3 rows") },
+      ],
+      result: {},
+    });
+    const { render } = mount(plot(fake, 1, { onOutput }));
+    await settle();
+    expect(onOutput.mock.calls).toEqual([
+      [
+        [
+          { type: "message", text: "using method = 'loess'" },
+          { type: "warning", text: "Removed 3 rows" },
+        ],
+      ],
+    ]);
+
+    render(plot(fake, 2, { onOutput }));
+    await settle();
+    expect(onOutput).toHaveBeenLastCalledWith([]);
+  });
+
+  test("reports a result to the handler of the latest render", async () => {
+    const fake = fakeWebR();
+    const first = vi.fn<(output: readonly object[]) => void>();
+    const second = vi.fn<(output: readonly object[]) => void>();
+    const pending = defer(fake);
+    const { render } = mount(plot(fake, 1, { onOutput: first }));
+    await settle();
+    render(plot(fake, 1, { onOutput: second }));
+    pending.resolve();
+    await settle();
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not call onOutput when it unmounts while R is busy", async () => {
+    const fake = fakeWebR();
+    const onOutput = vi.fn<(output: readonly object[]) => void>();
+    const pending = defer(fake);
+    const { unmount } = mount(plot(fake, 1, { onOutput }));
+    await settle();
+    unmount();
+    pending.resolve();
+    await settle();
+    expect(onOutput).not.toHaveBeenCalled();
   });
 });
 

@@ -1,4 +1,4 @@
-import type { EvalROptions, RObject, Shelter, WebR } from "webr";
+import type { EvalROptions, RCharacter, RObject, Shelter, WebR } from "webr";
 import type { Generated } from "../codegen/compose.js";
 
 type WebRData = NonNullable<EvalROptions["env"]>;
@@ -74,8 +74,43 @@ async function toR(shelter: Shelter, value: unknown): Promise<RObject> {
   });
 }
 
+/** One piece of what R printed while it ran the code. */
+export interface ROutput {
+  /** A line of a stream (`stdout`, `stderr`) or the text of a `message` or a `warning`. */
+  type: "stdout" | "stderr" | "message" | "warning";
+  text: string;
+}
+
+/** What one run of generated code produced. */
+export interface Evaluation {
+  /** The last plot, or `null` if nothing was drawn or no plot was asked for. */
+  image: ImageBitmap | null;
+  output: ROutput[];
+}
+
+/** Reads captured output. A message or a warning is an R condition, whose text is fetched. */
+async function toOutput(
+  captured: readonly { type: string; data: unknown }[],
+): Promise<ROutput[]> {
+  const output: ROutput[] = [];
+  for (const { type, data } of captured) {
+    if (type === "stdout" || type === "stderr") {
+      output.push({ type, text: String(data) });
+    } else if (type === "message" || type === "warning") {
+      const message = (await (data as RObject).get("message")) as RCharacter;
+      // `message()` ends its text with a line break.
+      output.push({
+        type,
+        text: (await message.toString()).replace(/\n$/, ""),
+      });
+    }
+  }
+  return output;
+}
+
 /**
- * Runs generated code in webR and returns the last plot, or `null` if nothing was drawn.
+ * Runs generated code in webR and returns what it printed and, if a `size` is given, the last
+ * plot at that size in CSS pixels. Without a size, plots are not captured.
  *
  * Visible values are printed as at the R console, so a ggplot object draws without `print()`.
  * The caller owns the returned image and has to close it.
@@ -83,23 +118,24 @@ async function toR(shelter: Shelter, value: unknown): Promise<RObject> {
 export async function evaluate(
   webR: WebR,
   { code, env }: Generated,
-  width: number,
-  height: number,
-): Promise<ImageBitmap | null> {
+  size?: { width: number; height: number },
+): Promise<Evaluation> {
   const shelter = await new webR.Shelter();
   try {
     const bound: Record<string, RObject> = {};
     for (const [name, value] of Object.entries(env)) {
       bound[name] = await toR(shelter, value);
     }
-    const { images } = await shelter.captureR(code, {
+    const captured = await shelter.captureR(code, {
       env: bound,
-      captureGraphics: { width, height, bg: "white" },
+      captureGraphics: size
+        ? { width: size.width, height: size.height, bg: "white" }
+        : false,
       withAutoprint: true,
     });
-    const last = images.pop() ?? null;
-    for (const image of images) image.close();
-    return last;
+    const image = captured.images.pop() ?? null;
+    for (const earlier of captured.images) earlier.close();
+    return { image, output: await toOutput(captured.output) };
   } finally {
     await shelter.purge();
   }

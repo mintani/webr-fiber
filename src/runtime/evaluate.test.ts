@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { fakeWebR } from "../testing/fake-webr.js";
+import { fakeCondition, fakeImage, fakeWebR } from "../testing/fake-webr.js";
 import { evaluate } from "./evaluate.js";
 
 /** The objects that the code of the first `captureR` call was evaluated with. */
 async function bound(env: Record<string, unknown>) {
   const fake = fakeWebR();
-  await evaluate(fake.webR, { code: "x", env }, 600, 400);
+  await evaluate(fake.webR, { code: "x", env }, { width: 600, height: 400 });
   const [, options] = fake.captureR.mock.calls[0] ?? [];
   return { fake, env: (options as { env: Record<string, unknown> }).env };
 }
@@ -74,5 +74,77 @@ describe("bound objects", () => {
         columns: ["day"],
       },
     });
+  });
+});
+
+describe("plots", () => {
+  test("returns the last plot at the given size and closes the earlier ones", async () => {
+    const fake = fakeWebR();
+    const [first, last] = [fakeImage(), fakeImage()];
+    fake.captureR.mockResolvedValueOnce({
+      images: [first, last],
+      output: [],
+      result: {},
+    });
+    const result = await evaluate(
+      fake.webR,
+      { code: "plot(1)", env: {} },
+      { width: 600, height: 400 },
+    );
+    expect(fake.captureR).toHaveBeenCalledWith("plot(1)", {
+      env: {},
+      captureGraphics: { width: 600, height: 400, bg: "white" },
+      withAutoprint: true,
+    });
+    expect(result.image).toBe(last);
+    expect(first.close).toHaveBeenCalledTimes(1);
+    expect(last.close).not.toHaveBeenCalled();
+  });
+
+  test("does not capture plots without a size", async () => {
+    const fake = fakeWebR();
+    fake.captureR.mockResolvedValueOnce({ images: [], output: [], result: {} });
+    const result = await evaluate(fake.webR, { code: "1", env: {} });
+    expect(fake.captureR).toHaveBeenCalledWith("1", {
+      env: {},
+      captureGraphics: false,
+      withAutoprint: true,
+    });
+    expect(result.image).toBeNull();
+  });
+});
+
+describe("output", () => {
+  test("keeps the order and reads the text of messages and warnings", async () => {
+    const fake = fakeWebR();
+    fake.captureR.mockResolvedValueOnce({
+      images: [],
+      output: [
+        { type: "stdout", data: "[1] 1" },
+        { type: "message", data: fakeCondition("two lines\nof note\n") },
+        { type: "stderr", data: "to stderr" },
+        { type: "warning", data: fakeCondition("careful") },
+        { type: "stdout", data: "" },
+        { type: "prompt", data: "> " },
+      ],
+      result: {},
+    });
+    const { output } = await evaluate(fake.webR, { code: "x", env: {} });
+    expect(output).toEqual([
+      { type: "stdout", text: "[1] 1" },
+      { type: "message", text: "two lines\nof note" },
+      { type: "stderr", text: "to stderr" },
+      { type: "warning", text: "careful" },
+      { type: "stdout", text: "" },
+    ]);
+  });
+
+  test("purges the shelter when R fails", async () => {
+    const fake = fakeWebR();
+    fake.captureR.mockRejectedValueOnce(new Error("boom"));
+    await expect(evaluate(fake.webR, { code: "x", env: {} })).rejects.toThrow(
+      "boom",
+    );
+    expect(fake.purge).toHaveBeenCalledTimes(1);
   });
 });

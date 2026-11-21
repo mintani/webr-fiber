@@ -47,7 +47,7 @@ function prepare(webR: WebR, key: string): Promise<void> {
   return ready;
 }
 
-/** Shares one webR instance with every `RCanvas` below it and prepares it for use. */
+/** Shares one webR instance with every component below it and prepares it for use. */
 export function WebRProvider({
   webR,
   packages = [],
