@@ -100,7 +100,7 @@ describe("printing", () => {
     expect(pre?.getAttribute("aria-label")).toBe("Model");
   });
 
-  test("runs again only when the code or the objects change", async () => {
+  test("runs again only when the code or the data change", async () => {
     const fake = fakeWebR();
     const rows = [{ wt: 1 }];
     const view = (data: object, label: string) =>
@@ -121,6 +121,10 @@ describe("printing", () => {
     expect(fake.captureR).toHaveBeenCalledTimes(1);
 
     render(view([{ wt: 1 }], "b"));
+    await settle();
+    expect(fake.captureR).toHaveBeenCalledTimes(1);
+
+    render(view([{ wt: 2 }], "b"));
     await settle();
     expect(fake.captureR).toHaveBeenCalledTimes(2);
   });

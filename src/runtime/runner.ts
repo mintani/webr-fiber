@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { WebR } from "webr";
 import type { Generated } from "../codegen/compose.js";
+import { isPlain } from "./plain.js";
 import { useWebR } from "./provider.js";
 
 interface Handlers<J extends Generated, R> {
@@ -16,22 +17,64 @@ interface Handlers<J extends Generated, R> {
   onError?: ((error: unknown) => void) | undefined;
 }
 
-function sameEntries(a: object, b: object): boolean {
+type Same = (a: unknown, b: unknown) => boolean;
+
+function sameEntries(a: object, b: object, same: Same = Object.is): boolean {
   const entries = Object.entries(b);
   return (
     Object.keys(a).length === entries.length &&
     entries.every(
-      ([key, value]) => (a as Record<string, unknown>)[key] === value,
+      ([key, value]) =>
+        Object.hasOwn(a, key) &&
+        same((a as Record<string, unknown>)[key], value),
     )
   );
 }
 
-/** Two jobs are the same if they have the same code, bound objects (by identity) and options. */
-function sameJob(a: Generated | null, b: Generated): boolean {
+function sameItems(
+  a: readonly unknown[],
+  b: readonly unknown[],
+  same: Same,
+): boolean {
+  if (a.length !== b.length) return false;
+  // A loop by index, because `every` skips the holes of a sparse array.
+  for (let index = 0; index < a.length; index++) {
+    if (!same(a[index], b[index])) return false;
+  }
+  return true;
+}
+
+/**
+ * Whether two bound objects hold the same data. They are compared by value, so that an object
+ * that is made again on every render, such as `rows.filter(...)`, does not run R every time.
+ * `path` holds the objects that are being compared further up.
+ */
+function sameData(a: unknown, b: unknown, path = new Set<unknown>()): boolean {
+  if (Object.is(a, b)) return true;
+  if (a instanceof Date && b instanceof Date) {
+    return Object.is(a.getTime(), b.getTime());
+  }
+  const inner: Same = (x, y) => sameData(x, y, path);
+  let compare: (() => boolean) | undefined;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    compare = () => sameItems(a, b, inner);
+  } else if (isPlain(a) && isPlain(b)) {
+    compare = () => sameEntries(a, b, inner);
+  }
+  // Data that contains itself cannot be compared item by item, so it counts as changed.
+  if (!compare || path.has(a)) return false;
+  path.add(a);
+  const same = compare();
+  path.delete(a);
+  return same;
+}
+
+/** Two jobs are the same if they have the same code, options and data in their bound objects. */
+export function sameJob(a: Generated | null, b: Generated): boolean {
   if (!a) return false;
   const { env: envA, ...restA } = a;
   const { env: envB, ...restB } = b;
-  return sameEntries(envA, envB) && sameEntries(restA, restB);
+  return sameEntries(envA, envB, sameData) && sameEntries(restA, restB);
 }
 
 function report(

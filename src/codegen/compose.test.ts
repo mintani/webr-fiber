@@ -193,6 +193,15 @@ describe("extend", () => {
   });
 });
 
+describe("r expression", () => {
+  test("is generated as it is, with its objects bound", () => {
+    expect(generate(r`coef(lm(mpg ~ wt, data = ${mtcars}))[${"wt"}]`)).toEqual({
+      code: 'coef(lm(mpg ~ wt, data = .d1))["wt"]',
+      env: { ".d1": mtcars },
+    });
+  });
+});
+
 describe("environment", () => {
   test("names objects in the order they appear and reuses the name of the same object", () => {
     const other = [{ wt: 3 }];

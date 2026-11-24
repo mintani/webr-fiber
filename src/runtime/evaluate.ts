@@ -1,15 +1,9 @@
 import type { EvalROptions, RCharacter, RObject, Shelter, WebR } from "webr";
 import type { Generated } from "../codegen/compose.js";
+import { isPlain } from "./plain.js";
+import type { Plain } from "./plain.js";
 
 type WebRData = NonNullable<EvalROptions["env"]>;
-
-type Plain = Record<string, unknown>;
-
-function isPlain(value: unknown): value is Plain {
-  if (typeof value !== "object" || value === null) return false;
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
 
 function mapEntries(
   record: Plain,
@@ -74,6 +68,18 @@ async function toR(shelter: Shelter, value: unknown): Promise<RObject> {
   });
 }
 
+/** Converts the bound objects of generated code to R objects that the shelter protects. */
+export async function toEnv(
+  shelter: Shelter,
+  env: Generated["env"],
+): Promise<Record<string, RObject>> {
+  const bound: Record<string, RObject> = {};
+  for (const [name, value] of Object.entries(env)) {
+    bound[name] = await toR(shelter, value);
+  }
+  return bound;
+}
+
 /** One piece of what R printed while it ran the code. */
 export interface ROutput {
   /** A line of a stream (`stdout`, `stderr`) or the text of a `message` or a `warning`. */
@@ -122,12 +128,8 @@ export async function evaluate(
 ): Promise<Evaluation> {
   const shelter = await new webR.Shelter();
   try {
-    const bound: Record<string, RObject> = {};
-    for (const [name, value] of Object.entries(env)) {
-      bound[name] = await toR(shelter, value);
-    }
     const captured = await shelter.captureR(code, {
-      env: bound,
+      env: await toEnv(shelter, env),
       captureGraphics: size
         ? { width: size.width, height: size.height, bg: "white" }
         : false,

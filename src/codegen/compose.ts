@@ -1,5 +1,11 @@
 import { composerOf } from "./catalogue.js";
-import { quoteFunctionName, quoteName, toCode } from "./literal.js";
+import {
+  isExpression,
+  quoteFunctionName,
+  quoteName,
+  toCode,
+} from "./literal.js";
+import type { RExpression } from "./literal.js";
 
 /** One R function call described as data. */
 export interface RNode {
@@ -65,13 +71,15 @@ function compose(node: RNode, bind: Bind): string[] {
 }
 
 /**
- * Generates R code from one node or a list of nodes.
+ * Generates R code from one node, a list of nodes or an `r` expression.
  *
  * Objects found in props are not written into the code. They are collected in `env` under
  * generated names (`.d1`, `.d2`, ...) and the code refers to them by those names. The same tree
  * always produces the same code and names.
  */
-export function generate(root: RNode | readonly RNode[]): Generated {
+export function generate(
+  root: RNode | readonly RNode[] | RExpression,
+): Generated {
   const names = new Map<object, string>();
   const env: Record<string, unknown> = {};
   const bind: Bind = (value) => {
@@ -83,6 +91,7 @@ export function generate(root: RNode | readonly RNode[]): Generated {
     }
     return name;
   };
+  if (isExpression(root)) return { code: toCode(root, bind), env };
   const roots: readonly RNode[] = Array.isArray(root) ? root : [root];
   return { code: roots.flatMap((node) => compose(node, bind)).join("\n"), env };
 }

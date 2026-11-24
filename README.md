@@ -37,6 +37,14 @@ ggplot(data = .d1, mapping = aes(x = wt, y = mpg)) + geom_point(size = 3)
 </RConsole>
 ```
 
+`useRValue` returns the value of an R expression, for example the coefficients of that model as an object:
+
+```tsx
+const fit = useRValue<Record<string, number>>(
+  r`coef(lm(mpg ~ wt, data = ${mtcars}))`,
+);
+```
+
 To see it run, start the [basic example](examples/basic/README.md) with `npm ci` and `npm run example`.
 
 > **Status:** pre-alpha. The example above works with React 19.3 and webR 0.6, but the package is not published to npm yet and the API can change.

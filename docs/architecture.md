@@ -1,12 +1,12 @@
 # Architecture
 
-webr-fiber turns a React element tree into R code and runs it with webR. `RCanvas` and `RConsole` connect the three parts: on each commit of their children they take the element tree from the renderer, generate the code and hand it to the runtime.
+webr-fiber turns a React element tree into R code and runs it with webR. `RCanvas` and `RConsole` connect the three parts: on each commit of their children they take the element tree from the renderer, generate the code and hand it to the runtime. `useRValue` skips the renderer: it generates the code from an `r` expression and returns the value that R computes.
 
-| Part            | Source          | Input           | Output                 |
-| --------------- | --------------- | --------------- | ---------------------- |
-| Renderer        | `src/renderer/` | JSX             | Tree of `RNode`        |
-| Code generation | `src/codegen/`  | Tree of `RNode` | R code and its objects |
-| Runtime         | `src/runtime/`  | R code, objects | Plot or printed output |
+| Part            | Source          | Input           | Output                        |
+| --------------- | --------------- | --------------- | ----------------------------- |
+| Renderer        | `src/renderer/` | JSX             | Tree of `RNode`               |
+| Code generation | `src/codegen/`  | Tree of `RNode` | R code and its objects        |
+| Runtime         | `src/runtime/`  | R code, objects | Plot, printed output or value |
 
 ## Renderer
 
@@ -60,6 +60,7 @@ const { code, env } = generate({
 | Item   | Shape                                            | Meaning                                      |
 | ------ | ------------------------------------------------ | -------------------------------------------- |
 | Input  | `RNode { type, props, children }`, or a list     | One R function call per node                 |
+| Input  | An `r` expression                                | The code as written                          |
 | Output | `{ code: string, env: Record<string, unknown> }` | R code, and the objects it refers to by name |
 
 A list of nodes becomes one statement per node, separated by line breaks.
@@ -180,7 +181,7 @@ const webR = new WebR();
 
 - The provider initialises the instance, installs the packages and attaches them with `library()`. This happens once per instance and list of packages, also when the provider mounts again.
 - `useWebR()` returns `{ webR, status, error }`. `status` is `loading`, `ready` or `error`.
-- `RCanvas`, `RConsole` and `useWebR()` throw outside a provider.
+- `RCanvas`, `RConsole`, `useRValue()` and `useWebR()` throw outside a provider.
 
 ### `RCanvas`
 
@@ -195,12 +196,14 @@ const webR = new WebR();
 
 `RCanvas` draws in these steps:
 
-1. After each commit it generates the code. If the code, the bound objects (compared by identity) and the size are the same as last time, it stops here.
+1. After each commit it generates the code. If the code, the data of the bound objects and the size are the same as last time, it stops here.
 2. R draws one plot at a time. A plot that waits is replaced by a newer one, so that only the latest state is drawn after R is free again. One redraw of a ggplot2 plot takes about half a second.
 3. Bound objects are converted. An array of row objects or an object of columns becomes a `data.frame`, and any other object becomes a named list. A `Date` in a cell of the data frame or as a value of the list becomes a date-time in UTC.
 4. The code runs with `captureR` in an environment that holds the bound objects. They do not leak into the global environment. Visible values are printed as at the R console, so `ggplot(...)` draws without `print()`.
 5. The last image is painted on the canvas. webR renders at twice the requested size, so the bitmap is `2 * width` by `2 * height`.
 
+- Bound objects are compared by value: arrays and plain objects by their items, dates by their time, anything else by identity. `rows.filter(...)` makes a new array on every render, and this keeps it from running R every time. The comparison stops at the first difference and costs one pass over the data when an equal object is made again.
+- A changed row needs a new row object, as React state does. A row that is changed in place looks the same.
 - If code generation or R fails, the previous plot stays and the error is reported.
 - If `RCanvas` unmounts while R is drawing, the result is dropped.
 - The plot background is white.
@@ -241,3 +244,45 @@ After each run without an error, `onOutput` receives what R printed as a list of
 | `warning`          | The text of a warning, without the call that raised it       |
 
 A plot can raise both: ggplot2 sends a message when it chooses a smoothing method and a warning when it drops rows with missing values.
+
+### `useRValue`
+
+`useRValue` evaluates an `r` expression and returns its value as a JavaScript value: a number for a label, rows for a table, or data for another chart library.
+
+```tsx
+const fit = useRValue<Record<string, number>>(
+  r`coef(lm(mpg ~ wt, data = ${mtcars}))`,
+);
+// fit: { status: "ready", value: { "(Intercept)": 37.29, wt: -5.34 } }
+```
+
+| Field    | Meaning                                                                                |
+| -------- | -------------------------------------------------------------------------------------- |
+| `status` | `loading` until R has returned the value of the current expression, `ready` or `error` |
+| `value`  | The latest value that R returned. It stays while a newer one is on its way or failed   |
+| `error`  | The reason for the status `error`                                                      |
+
+- The expression is evaluated again when its code or the data of its bound objects change, by the rules of `RCanvas`: one evaluation at a time, and only the latest expression after R was busy.
+- The status is `error` if code generation, R or the conversion fails, and if webR failed to start.
+- What the expression prints or draws is dropped.
+- The type parameter describes the value. It is not checked.
+
+R values are converted by these rules:
+
+| R value                                                 | JavaScript value                                                       |
+| ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `NULL`                                                  | `null`                                                                 |
+| Logical, integer, double or character vector            | Array, also for one element. `NA` and `NaN` are `null`                 |
+| Vector or list in which every element has a unique name | Object from name to value                                              |
+| Factor                                                  | Array of its labels                                                    |
+| `Date`                                                  | Array of `"YYYY-MM-DD"` strings                                        |
+| `POSIXct`, `POSIXlt`                                    | Array of ISO 8601 strings in UTC, as `Date.prototype.toISOString`      |
+| List without names                                      | Array of converted elements                                            |
+| `data.frame`                                            | Array of row objects. Row names are dropped                            |
+| Matrix                                                  | Array of rows. A row is an object if the matrix has column names       |
+| Function, formula, environment, array above 2-D         | Error. Convert it in R first, for example with `coef()` or `as.list()` |
+
+- A vector of length one stays an array, because R cannot tell a single value from a vector of one. Write `value?.[0]`. Row objects and named vectors hold plain values.
+- Dates come back as strings, which React can render and `new Date(text)` can parse. A `Date` that was sent to R comes back as the same instant.
+- A cell of a list column, a matrix column or a data frame column is the value of that row: an array, an object or a row object.
+- The value is prepared by a second R call that replaces factors and dates and rejects values without a JavaScript form, because webR's own conversion keeps names but no classes.
