@@ -27,6 +27,8 @@ Here `mtcars` is an array of row objects, and `size` and `smooth` are React stat
 ggplot(data = .d1, mapping = aes(x = wt, y = mpg)) + geom_point(size = 3)
 ```
 
+To see it run, start the [basic example](examples/basic/README.md) with `npm ci` and `npm run example`.
+
 > **Status:** pre-alpha. The example above works with React 19.3 and webR 0.6, but the package is not published to npm yet and the API can change.
 
 ## Language

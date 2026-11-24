@@ -19,11 +19,15 @@
   "files": [
     "dist"
   ],
+  "workspaces": [
+    "examples/*"
+  ],
   "scripts": {
-    "check": "prettier --check . && oxlint && tsc --noEmit && tsc --noEmit -p test/no-jsx",
+    "check": "prettier --check . && oxlint && tsc --noEmit && tsc --noEmit -p test/no-jsx && npm run check --workspace webr-fiber-example-basic",
     "format": "prettier --write .",
     "test": "vitest run",
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && tsc -p tsconfig.build.json && npm run build --workspace webr-fiber-example-basic",
+    "example": "npm run dev --workspace webr-fiber-example-basic",
     "prepare": "simple-git-hooks"
   },
   "simple-git-hooks": {

@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: "Poppins", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-primary: var(--primary);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  /* The surface under a plot. It has no chroma, so the colours of the plot read true. */
+  --color-canvas: var(--canvas);
+  /* Status colours. A status is never shown by colour alone; a word goes with it. */
+  --color-ok: var(--ok);
+  --color-run: var(--run);
+  --color-bad: var(--bad);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  --radius: 0.75rem;
+  --dur-short: 150ms;
+
+  --background: oklch(97% 0.018 201);
+  --foreground: oklch(30.5% 0 0);
+  --card: oklch(99.2% 0.006 200);
+  --primary: oklch(50% 0.13 197);
+  --muted: oklch(94.5% 0.02 197);
+  --muted-foreground: oklch(46% 0 0);
+  --border: oklch(30.5% 0 0 / 12%);
+  --input: oklch(30.5% 0 0 / 18%);
+  --ring: oklch(50% 0.13 197);
+  --canvas: oklch(94% 0 0);
+  --ok: oklch(48% 0.13 164);
+  --run: oklch(50% 0.13 197);
+  --bad: oklch(52% 0.2 27.3);
+  --knob: oklch(100% 0 0);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(17% 0.012 210);
+    --foreground: oklch(96% 0.006 200);
+    --card: oklch(22% 0.014 210);
+    --primary: oklch(80% 0.13 197);
+    --muted: oklch(27% 0.016 210);
+    --muted-foreground: oklch(72% 0.012 200);
+    --border: oklch(100% 0 0 / 12%);
+    --input: oklch(100% 0 0 / 16%);
+    --ring: oklch(80% 0.13 197);
+    --canvas: oklch(12% 0 0);
+    --ok: oklch(85.6% 0.137 164);
+    --run: oklch(80% 0.13 197);
+    --bad: oklch(70.4% 0.191 22.2);
+    --knob: oklch(96% 0.006 200);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer components {
+  /* A native range input. `--fill` is the share of the track left of the thumb. */
+  .slider {
+    @apply block h-4 w-full cursor-pointer appearance-none bg-transparent outline-none;
+  }
+  .slider::-webkit-slider-runnable-track {
+    @apply h-1 rounded-full;
+    background: linear-gradient(
+      to right,
+      var(--primary) var(--fill),
+      var(--muted) var(--fill)
+    );
+  }
+  .slider::-moz-range-track {
+    @apply h-1 rounded-full;
+    background: linear-gradient(
+      to right,
+      var(--primary) var(--fill),
+      var(--muted) var(--fill)
+    );
+  }
+  .slider::-webkit-slider-thumb {
+    @apply border-ring -mt-1 size-3 appearance-none rounded-full border bg-white;
+    transition: box-shadow var(--dur-short) var(--ease-out);
+  }
+  .slider::-moz-range-thumb {
+    @apply border-ring size-3 rounded-full border bg-white;
+    transition: box-shadow var(--dur-short) var(--ease-out);
+  }
+  .slider:hover::-webkit-slider-thumb,
+  .slider:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 3px oklch(from var(--ring) l c h / 50%);
+  }
+  .slider:hover::-moz-range-thumb,
+  .slider:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 3px oklch(from var(--ring) l c h / 50%);
+  }
+
+  /* A native checkbox with the switch role. */
+  .switch {
+    @apply bg-input relative h-[1.15rem] w-8 shrink-0 cursor-pointer appearance-none rounded-full border border-transparent outline-none;
+    transition:
+      background-color var(--dur-short) var(--ease-out),
+      box-shadow var(--dur-short) var(--ease-out);
+  }
+  .switch::before {
+    @apply absolute top-1/2 left-0 size-4 -translate-y-1/2 rounded-full content-[''];
+    background: var(--knob);
+    transition: translate var(--dur-short) var(--ease-out);
+  }
+  .switch:checked {
+    @apply bg-primary;
+  }
+  .switch:checked::before {
+    @apply translate-x-3.5;
+  }
+  .switch:focus-visible {
+    @apply border-ring;
+    box-shadow: 0 0 0 3px oklch(from var(--ring) l c h / 50%);
+  }
+}
+
+/* With reduced motion nothing moves; only opacity may change. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: opacity !important;
+    transition-duration: var(--dur-short) !important;
+  }
+}
