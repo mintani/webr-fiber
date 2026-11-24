@@ -13,7 +13,7 @@ webr-fiber is a custom React renderer that turns JSX into R code and runs it in 
 </RCanvas>
 ```
 
-> **Status:** pre-alpha. The repository currently contains the development workflow only. The API above is a design target, not a working feature.
+> **Status:** pre-alpha. The repository currently contains the development workflow and an empty library package. The API above is a design target, not a working feature.
 
 ## Language
 
@@ -30,8 +30,8 @@ All documentation, issues, pull requests, code comments and commit messages in t
 
 ## Relationship to webR
 
-webr-fiber is not affiliated with the webR project or Posit. It depends on the public `webr` npm package.
+webr-fiber is not affiliated with the webR project or Posit. It depends on the public `webr` npm package. Supported versions of React and webR are recorded in [ADR 0003](docs/decisions/0003-compatibility-policy.md).
 
 ## License
 
-To be decided before the first release.
+[MIT](LICENSE)

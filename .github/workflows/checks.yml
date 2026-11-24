@@ -23,17 +23,47 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - name: Formatting
+      - name: Formatting, lint and types
         run: npm run check
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm test
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run build
   quality:
     name: Quality
     if: ${{ !cancelled() }}
-    needs: [static]
+    needs: [static, test, build]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
       - name: Require every check to pass
         env:
           STATIC_RESULT: ${{ needs.static.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
         run: |
-          [[ "$STATIC_RESULT" == success ]]
+          [[ "$STATIC_RESULT" == success && "$TEST_RESULT" == success && "$BUILD_RESULT" == success ]]

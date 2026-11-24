@@ -16,5 +16,6 @@ Architecture and API documents will be added here together with the first implem
 | ---------------------------------------------------- | -------------------------------------------- |
 | [0001](decisions/0001-git-workflow.md)               | Git workflow and commit validation           |
 | [0002](decisions/0002-english-only-documentation.md) | English-only documentation and communication |
+| [0003](decisions/0003-compatibility-policy.md)       | Compatibility policy for React and webR      |
 
 New ADRs start from the [template](decisions/template.md).

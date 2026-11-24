@@ -39,7 +39,7 @@ npm ci
 
 | Hook         | Runs                                                      |
 | ------------ | --------------------------------------------------------- |
-| `pre-commit` | `npm run check` (formatting)                              |
+| `pre-commit` | `npm run check` (formatting, lint and types)              |
 | `commit-msg` | commitlint against [.commitlintrc.yml](.commitlintrc.yml) |
 
 Optionally, use the commit message template: `git config --local commit.template .gitmessage`.
@@ -80,16 +80,20 @@ Work that is explicitly approved without an issue may skip steps 1 and 2.
 
 - Pin direct dependencies to exact versions in `package.json`. `package-lock.json` records the full tree, and CI installs with `npm ci`.
 - Before updating, read the release notes and check peer dependency ranges.
-- `react`, `react-dom` and `webr` will be peer dependencies of the published package. See the compatibility policy once it is recorded in an ADR.
+- `react`, `react-dom` and `webr` are peer dependencies. Supported versions are recorded in [ADR 0003](docs/decisions/0003-compatibility-policy.md).
 
 ## Verifying a change
 
-| Command          | Checks                       |
-| ---------------- | ---------------------------- |
-| `npm run check`  | Formatting (Prettier)        |
-| `npm run format` | Rewrites files with Prettier |
+| Command          | Checks                                                             |
+| ---------------- | ------------------------------------------------------------------ |
+| `npm run check`  | Formatting (Prettier), lint (oxlint) and types (`tsc --noEmit`)    |
+| `npm test`       | Unit tests (Vitest)                                                |
+| `npm run build`  | Builds the library to `dist/` as ES modules with type declarations |
+| `npm run format` | Rewrites files with Prettier                                       |
 
-Lint, type checking, tests and builds are added to `npm run check` and CI together with the library code. In the pull request, record which commands you ran and their results. Do not report a build as verified if you only started the dev server.
+Relative imports in `src/` end in `.js`, also when the file is TypeScript, so that the published type declarations resolve in every module resolution mode.
+
+In the pull request, record which commands you ran and their results. Do not report a build as verified if you only started the dev server.
 
 ## Opening a pull request
 
@@ -135,6 +139,8 @@ Issue titles, pull request titles and commit subjects use [Conventional Commits]
 | Workflow                                             | Job             | Checks                                                                                           |
 | ---------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------ |
 | [Checks](.github/workflows/checks.yml)               | `Static checks` | `npm run check`                                                                                  |
+|                                                      | `Tests`         | `npm test`                                                                                       |
+|                                                      | `Build`         | `npm run build`                                                                                  |
 |                                                      | `Quality`       | Required check. Passes only if every job above passed                                            |
 | [Commit policy](.github/workflows/commit-policy.yml) | `Commit policy` | Branch name, target branch, pull request title, commit messages, English-only titles and commits |
 

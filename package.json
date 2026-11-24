@@ -3,21 +3,49 @@
   "version": "0.0.0",
   "private": true,
   "description": "Declarative R for React, powered by webR. Unofficial.",
+  "license": "MIT",
   "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "check": "prettier --check .",
+    "check": "prettier --check . && oxlint && tsc --noEmit",
     "format": "prettier --write .",
+    "test": "vitest run",
+    "build": "vite build && tsc -p tsconfig.build.json",
     "prepare": "simple-git-hooks"
   },
   "simple-git-hooks": {
     "pre-commit": "npm run check",
     "commit-msg": "npx --no -- commitlint --edit \"$1\""
   },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "webr": "~0.6.0"
+  },
   "devDependencies": {
     "@commitlint/cli": "21.2.4",
     "@commitlint/config-conventional": "21.2.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "oxlint": "1.93.0",
     "prettier": "3.10.1",
-    "simple-git-hooks": "2.14.0"
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "simple-git-hooks": "2.14.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.0",
+    "webr": "0.6.1"
   },
   "engines": {
     "node": ">=24"
