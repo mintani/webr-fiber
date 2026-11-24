@@ -130,17 +130,62 @@ describe("sequence", () => {
   });
 });
 
+describe("catalogue", () => {
+  test.each([
+    "hist",
+    "barplot",
+    "boxplot",
+    "pie",
+    "curve",
+    "pairs",
+    "coplot",
+    "matplot",
+    "dotchart",
+    "image",
+    "contour",
+    "persp",
+    "qqnorm",
+    "qqplot",
+  ])("%s starts a plot that its children add to", (type) => {
+    expect(generate(h(type, { x: [1, 2] }, h("abline", { v: 2 }))).code).toBe(
+      `${type}(x = c(1, 2))\nabline(v = 2)`,
+    );
+  });
+
+  test("uses the composer of the function for pkg::fn", () => {
+    expect(
+      generate([
+        h("ggplot2::ggplot", {}, h("ggplot2::geom_point")),
+        h("graphics::hist", { x: [1, 2] }, h("graphics::abline", { v: 2 })),
+        h("stats:::plot.lm", {}, h("abline", { h: 0 })),
+      ]).code,
+    ).toMatchInlineSnapshot(`
+      "ggplot2::ggplot() + ggplot2::geom_point()
+      graphics::hist(x = c(1, 2))
+      graphics::abline(v = 2)
+      stats:::plot.lm(abline(h = 0))"
+    `);
+  });
+});
+
 describe("extend", () => {
   test("registers a composer for another function", () => {
-    const tree = h("hist", { x: [1, 2, 2] }, h("abline", { v: 2 }));
+    const tree = h("stripchart", { x: [1, 2, 2] }, h("abline", { v: 2 }));
     expect(generate(tree).code).toMatchInlineSnapshot(
-      `"hist(abline(v = 2), x = c(1, 2, 2))"`,
+      `"stripchart(abline(v = 2), x = c(1, 2, 2))"`,
     );
-    extend({ hist: "sequence" });
+    extend({ stripchart: "sequence" });
     expect(generate(tree).code).toMatchInlineSnapshot(`
-      "hist(x = c(1, 2, 2))
+      "stripchart(x = c(1, 2, 2))
       abline(v = 2)"
     `);
+  });
+
+  test("prefers an entry for the full name over the entry of the function", () => {
+    extend({ "mypkg::plot": "plus" });
+    expect(
+      generate(h("mypkg::plot", {}, h("ggplot"))).code,
+    ).toMatchInlineSnapshot(`"mypkg::plot() + ggplot()"`);
   });
 
   test("does not accept call", () => {

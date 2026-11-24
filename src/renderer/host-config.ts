@@ -43,11 +43,15 @@ interface Reconciler {
 const NO_EVENT_PRIORITY = 0;
 let updatePriority = NO_EVENT_PRIORITY;
 
-function withoutReserved(
-  props: Record<string, unknown>,
-): Record<string, unknown> {
+// JSX cannot write a dot in a tag or prop name, so a hyphen stands for it: `<t-test na-rm />`.
+const dotted = (name: string): string => name.replaceAll("-", ".");
+
+/** The props of a node: the JSX props without `children` and `ref`, under their R names. */
+function toProps(props: Record<string, unknown>): Record<string, unknown> {
   const { children: _children, ref: _ref, ...rest } = props;
-  return rest;
+  return Object.fromEntries(
+    Object.entries(rest).map(([name, value]) => [dotted(name), value]),
+  );
 }
 
 function insert(
@@ -75,8 +79,8 @@ const hostConfig = {
   noTimeout: -1,
 
   createInstance: (type: string, props: Record<string, unknown>): Instance => ({
-    type,
-    props: withoutReserved(props),
+    type: dotted(type),
+    props: toProps(props),
     children: [],
   }),
   createTextInstance(text: string): never {
@@ -114,7 +118,7 @@ const hostConfig = {
     _previous: Record<string, unknown>,
     next: Record<string, unknown>,
   ): void {
-    instance.props = withoutReserved(next);
+    instance.props = toProps(next);
   },
 
   getRootHostContext: () => ({}),
