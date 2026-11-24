@@ -5,13 +5,13 @@ export default defineConfig({
   plugins: [react()],
   build: {
     lib: {
-      entry: "src/index.ts",
+      entry: { index: "src/index.ts", jsx: "src/jsx.ts" },
       formats: ["es"],
-      fileName: "index",
     },
     rolldownOptions: {
-      // Peer dependencies come from the user's app, including subpaths such as react/jsx-runtime.
-      external: [/^react($|\/)/, /^react-dom($|\/)/, /^webr($|\/)/],
+      // Dependencies and peer dependencies are resolved in the user's app, including subpaths
+      // such as react/jsx-runtime.
+      external: /^(react|react-dom|react-reconciler|its-fine|webr)($|\/)/,
     },
   },
 });

@@ -1,3 +1,4 @@
+export { aes } from "./codegen/aes.js";
 export { extend } from "./codegen/catalogue.js";
 export type { Composer } from "./codegen/catalogue.js";
 export { generate } from "./codegen/compose.js";
