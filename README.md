@@ -5,15 +5,29 @@ Declarative R for React, powered by [webR](https://docs.r-wasm.org/webr/latest/)
 webr-fiber is a custom React renderer that turns JSX into R code and runs it in the browser with webR (R compiled to WebAssembly). Plots re-render when React state changes, without a server.
 
 ```tsx
-<RCanvas width={600} height={400}>
-  <ggplot data={mtcars} mapping={aes({ x: "wt", y: "mpg" })}>
-    <geom_point size={size} />
-    {smooth && <geom_smooth method="lm" />}
-  </ggplot>
-</RCanvas>
+import "webr-fiber/jsx";
+import { WebR } from "webr";
+import { RCanvas, WebRProvider, aes } from "webr-fiber";
+
+const webR = new WebR();
+
+<WebRProvider webR={webR} packages={["ggplot2"]}>
+  <RCanvas width={600} height={400}>
+    <ggplot data={mtcars} mapping={aes({ x: "wt", y: "mpg" })}>
+      <geom_point size={size} />
+      {smooth && <geom_smooth method="lm" />}
+    </ggplot>
+  </RCanvas>
+</WebRProvider>;
 ```
 
-> **Status:** pre-alpha. The React renderer and code generation are implemented. `RCanvas`, which runs the code in webR, is not, so the API above is a design target, not a working feature.
+Here `mtcars` is an array of row objects, and `size` and `smooth` are React state. webr-fiber generates this R code, runs it and draws the result on a canvas:
+
+```r
+ggplot(data = .d1, mapping = aes(x = wt, y = mpg)) + geom_point(size = 3)
+```
+
+> **Status:** pre-alpha. The example above works with React 19.3 and webR 0.6, but the package is not published to npm yet and the API can change.
 
 ## Language
 

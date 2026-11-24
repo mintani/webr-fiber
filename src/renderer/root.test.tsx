@@ -10,15 +10,11 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
-import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { RNode } from "../codegen/compose.js";
 import "../jsx.js";
+import { mount } from "../testing/mount.js";
 import { Root } from "./root.js";
-
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
 
 // React changes the nodes in place, so each commit is copied when it is reported.
 const copy = (nodes: readonly RNode[]): RNode[] =>
@@ -36,17 +32,7 @@ function collect() {
   return { commits, onCommit };
 }
 
-const mounted: (() => void)[] = [];
-function mount(element: ReactNode) {
-  const root = createRoot(document.createElement("div"));
-  act(() => root.render(element));
-  const unmount = () => act(() => root.unmount());
-  mounted.push(unmount);
-  return { render: (next: ReactNode) => act(() => root.render(next)), unmount };
-}
-
 afterEach(() => {
-  for (const unmount of mounted.splice(0)) unmount();
   vi.restoreAllMocks();
 });
 
