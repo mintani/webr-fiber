@@ -45,9 +45,9 @@ const fit = useRValue<Record<string, number>>(
 );
 ```
 
-To see it run, start the [basic example](examples/basic/README.md) with `npm ci` and `npm run example`.
+[Common R features](docs/common-r-features.md) shows how to write the plots, summaries and data handling that people use most. To see it run, start the [basic example](examples/basic/README.md) with `npm ci` and `npm run example`.
 
-> **Status:** pre-alpha. The example above works with React 19.3 and webR 0.6, but the package is not published to npm yet and the API can change.
+> **Status:** pre-alpha. The examples above work with React 19.3 and webR 0.6, but the package is not published to npm yet and the API can change.
 
 ## Language
 
@@ -55,12 +55,13 @@ All documentation, issues, pull requests, code comments and commit messages in t
 
 ## Documentation
 
-| Purpose                                        | Document                           |
-| ---------------------------------------------- | ---------------------------------- |
-| Find the right document                        | [docs/README.md](docs/README.md)   |
-| Set up, implement, verify, open a pull request | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Instructions for AI coding agents              | [AGENTS.md](AGENTS.md)             |
-| Why important decisions were made              | [docs/decisions/](docs/decisions/) |
+| Purpose                                        | Document                                               |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| Find the right document                        | [docs/README.md](docs/README.md)                       |
+| Write common R tasks with webr-fiber           | [docs/common-r-features.md](docs/common-r-features.md) |
+| Set up, implement, verify, open a pull request | [CONTRIBUTING.md](CONTRIBUTING.md)                     |
+| Instructions for AI coding agents              | [AGENTS.md](AGENTS.md)                                 |
+| Why important decisions were made              | [docs/decisions/](docs/decisions/)                     |
 
 ## Relationship to webR
 

@@ -8,6 +8,7 @@
 | Setup, workflow, verification, pull requests, releases | [Contributing guide](../CONTRIBUTING.md)     |
 | Instructions for AI coding agents                      | [AGENTS.md](../AGENTS.md)                    |
 | How JSX becomes an element tree and then R code        | [Architecture](architecture.md)              |
+| How to write the R features that people use most       | [Common R features](common-r-features.md)    |
 | A working app to run and copy from                     | [Basic example](../examples/basic/README.md) |
 
 ## Decisions (ADRs)
