@@ -1,11 +1,23 @@
 import { vi } from "vitest";
 import type { WebR } from "webr";
 
-type Capture = { images: ImageBitmap[]; output: never[]; result: object };
+type Capture = {
+  images: ImageBitmap[];
+  output: { type: string; data: unknown }[];
+  result: object;
+};
 
 /** A stand-in for an `ImageBitmap` that records whether it was closed. */
 export function fakeImage(): ImageBitmap {
   return { width: 1200, height: 800, close: vi.fn<() => void>() };
+}
+
+/** A stand-in for the R condition that webR captures for a message or a warning. */
+export function fakeCondition(message: string) {
+  const text = { toString: () => Promise.resolve(message) };
+  return {
+    get: (name: string) => Promise.resolve(name === "message" ? text : null),
+  };
 }
 
 // webR classes are created with `await new Class(value)`.

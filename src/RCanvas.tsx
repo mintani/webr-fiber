@@ -1,12 +1,11 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useRef } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { generate } from "./codegen/compose.js";
-import type { Generated, RNode } from "./codegen/compose.js";
+import type { Generated } from "./codegen/compose.js";
 import { Root } from "./renderer/root.js";
 import { evaluate } from "./runtime/evaluate.js";
-import { useWebR } from "./runtime/provider.js";
-
-type ErrorHandler = (error: unknown) => void;
+import type { Evaluation, ROutput } from "./runtime/evaluate.js";
+import { useRunner } from "./runtime/runner.js";
 
 interface RCanvasProps extends Omit<
   ComponentProps<"canvas">,
@@ -21,29 +20,15 @@ interface RCanvasProps extends Omit<
   /** Called with the generated R code whenever it changes. */
   onCode?: (code: string) => void;
   /** Called when code generation or R fails. Without it the error is logged to the console. */
-  onError?: ErrorHandler;
+  onError?: (error: unknown) => void;
+  /** Called after each draw with what R printed, including messages and warnings. */
+  onOutput?: (output: readonly ROutput[]) => void;
 }
 
 /** One plot to draw: the generated code, its objects and the size. */
 interface Job extends Generated {
   width: number;
   height: number;
-}
-
-function sameJob(a: Job | null, b: Job): boolean {
-  if (!a || a.code !== b.code || a.width !== b.width || a.height !== b.height) {
-    return false;
-  }
-  const names = Object.keys(b.env);
-  return (
-    Object.keys(a.env).length === names.length &&
-    names.every((name) => a.env[name] === b.env[name])
-  );
-}
-
-function report(error: unknown, onError: ErrorHandler | undefined): void {
-  if (onError) onError(error);
-  else console.error(error);
 }
 
 // webR renders plots at twice the requested size.
@@ -59,30 +44,14 @@ export function RCanvas({
   children,
   onCode,
   onError,
+  onOutput,
   style,
   ...canvasProps
 }: RCanvasProps): ReactNode {
-  const { webR, status } = useWebR();
   const canvas = useRef<HTMLCanvasElement>(null);
-  const latestOnError = useRef(onError);
-  const queue = useRef({
-    /** The last job that was taken from the tree, drawn or not. */
-    accepted: null as Job | null,
-    /** The job that R has not started yet. A newer job replaces it. */
-    waiting: null as Job | null,
-    busy: false,
-    ready: false,
-  });
-
-  const drawNext = async (): Promise<void> => {
-    const state = queue.current;
-    const job = state.waiting;
-    if (!job || state.busy || !state.ready) return;
-    state.waiting = null;
-    state.busy = true;
-    try {
-      const image = await evaluate(webR, job, job.width, job.height);
-      // After unmounting there is no canvas, and the result is dropped.
+  const submit = useRunner<Job, Evaluation>({
+    run: (webR, job) => evaluate(webR, job, job),
+    onResult({ image, output }, job) {
       const target = canvas.current;
       if (target) {
         target.width = job.width * SCALE;
@@ -93,37 +62,11 @@ export function RCanvas({
         }
       }
       image?.close();
-    } catch (error) {
-      if (canvas.current) report(error, latestOnError.current);
-    } finally {
-      state.busy = false;
-    }
-    void drawNext();
-  };
-
-  const onCommit = (roots: readonly RNode[]): void => {
-    const state = queue.current;
-    let job: Job;
-    try {
-      job = { ...generate(roots), width, height };
-    } catch (error) {
-      report(error, onError);
-      return;
-    }
-    if (sameJob(state.accepted, job)) return;
-    if (state.accepted?.code !== job.code) onCode?.(job.code);
-    state.accepted = job;
-    state.waiting = job;
-    void drawNext();
-  };
-
-  useLayoutEffect(() => {
-    latestOnError.current = onError;
-  });
-
-  useEffect(() => {
-    queue.current.ready = status === "ready";
-    void drawNext();
+      onOutput?.(output);
+    },
+    onDiscard: ({ image }) => image?.close(),
+    onCode,
+    onError,
   });
 
   return (
@@ -134,7 +77,13 @@ export function RCanvas({
         ref={canvas}
         style={{ width, height, ...style }}
       />
-      <Root onCommit={onCommit}>{children}</Root>
+      <Root
+        onCommit={(roots) =>
+          submit(() => ({ ...generate(roots), width, height }))
+        }
+      >
+        {children}
+      </Root>
     </>
   );
 }

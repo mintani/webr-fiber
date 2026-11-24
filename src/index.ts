@@ -6,5 +6,7 @@ export type { Generated, RNode } from "./codegen/compose.js";
 export { r } from "./codegen/literal.js";
 export type { RExpression } from "./codegen/literal.js";
 export { RCanvas } from "./RCanvas.js";
+export { RConsole } from "./RConsole.js";
+export type { ROutput } from "./runtime/evaluate.js";
 export { WebRProvider, useWebR } from "./runtime/provider.js";
 export type { WebRState } from "./runtime/provider.js";
